@@ -9,7 +9,21 @@
     linkcolor=black,
     urlcolor=black
 }
-\usepackage{listings}
+\usepackage{color}
+\usepackage{listings, xcolor}
+\lstset{
+	language=Java,
+	tabsize = 4, 
+	showstringspaces = false, 
+	numbers = left, 
+	commentstyle = \color{purple},
+	keywordstyle = \color{blue},
+	stringstyle = \color{red}, 
+	rulecolor = \color{black},
+	basicstyle = \small \ttfamily, 
+	breaklines = true,
+	numberstyle = \tiny,
+}
 \usepackage{tikz-network}
 \usepackage{amsmath, amsfonts, amssymb, amsthm}
 \title{Concurrent programming}
@@ -25,5 +39,53 @@
 		This is done to utilise multiple CPU cores rather than rely on CPU speed.\\
 		Not only this but instead of having single powerfull computers, bigger networks of computers can be used.\\
 		The benefits comes at a cost of complexity, due to the all possible outcomes of different timed execution.
-		
+	\section{Anonymous,- and lambdafunctions}
+		For at simple class which is given in an argument, instead of creating a class and then parsing it, the class can be created in the argument field.\\
+		For instance a class which implements comparable, it can be programmed as such:
+\begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
+public interface StringExecute {
+	public void run(String content);
+}
+	
+public static void doAndMeasure( StringExecutable runnable ) {
+	long t1 = System.currentTimeMillis();
+	runnable.run();
+	System.out.println( "Elapsed time: " + (System.currentTimeMillis() - t1) + "ms" );
+}
+
+public static void anonFunc() {
+	doAndMeasure(new StringExecute() {
+		public static void run(String content) {
+			System.out.println(content + " Wow!");
+		}
+	});
+}
+
+public static void lambdaFunc() {
+	doAndMeasure( (content) -> System.out.println(content + " Wow!"););
+}
+
+public static void lambdaFuncOpt() {
+	doAndMeasure( (content) -> System.out::println;); //Only prints content and not + " Wow!"
+}
+\end{lstlisting}
+		Here lambda function is only possible due to the compiler knowing what type of object is created due to restrains from the function and the runnable interface only contains a single run function.
+		Another use of lambda expression is when working with maps.
+\begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
+public static void main() {
+	String text = "Hello world hope your having a good day!";
+	Map<Charachter, Interger> occurrences = new HashMap<>();
+	for(int i = 0; i < text.length(); i++){
+		final char c = text.charAt(i);
+		if(occurrences.containsKey(c))
+			occurrences.put(c,occurrences.get(c)+1);
+		else
+			occurrences.put(c,1);
+	}
+	for(int i = 0; i < text.length(); i++){
+		final char c = text.charAt(i);
+		occurrences.merge(c,1,(currValue,value) -> currValue+value);
+	}
+\end{lstlisting}
+	Both for loops do the same, the second uses merge which takes a position (c) and a default value (1) and a bifunction which is a function with two inputs. The arguments will automaticly be assigned such currValue is the current hash value and value is the same as the default value 1.
 \end{document}
