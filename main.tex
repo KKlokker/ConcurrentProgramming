@@ -38,7 +38,8 @@
 		Concurrency is the act of having multiple execution done simultaneously which interact with each other.\\
 		This is done to utilise multiple CPU cores rather than rely on CPU speed.\\
 		Not only this but instead of having single powerfull computers, bigger networks of computers can be used.\\
-		The benefits comes at a cost of complexity, due to the all possible outcomes of different timed execution.
+		The benefits comes at a cost of complexity, due to the all possible outcomes of different timed execution.\\
+		The risk includes race-conditions where variables are changed while used in another thread or liveness where threads are stuck forever waiting for a non realeased variable nad such.
 	\section{Anonymous,- and lambdafunctions}
 		For at simple class which is given in an argument, instead of creating a class and then parsing it, the class can be created in the argument field.\\
 		For instance a class which implements comparable, it can be programmed as such:
@@ -153,4 +154,68 @@ words.stream().parallelStream().reduce(0,(sum,s) -> sum + s.length(), (sum1, sum
 		\item Combiner - takes two partial accumulators and combines them
 	\end{itemize}
 	Like sot the $sort()$ function will either wait for all parralle streams or use parralell sorting in large amounts.
+\section{Bugs and solutions of parallelizing}
+	When working with parrallel threads it is important to encapsulate as much as possible. Threads may access data outside it thread, but this can lead to some of the following bugs.
+	\subsection{Race conditions}
+		This is a bug which accour when two threads are accessing the same global variable.\\
+		This is a bug based upon atomicity is not kept and an operation is not done before another access data from the operation.\\
+		The most simple form is two threads which are incrementing a variable.\\
+		Say that the first threads read the variable, at the same the second thread reads the variable.\\
+		This will conclude in both threads having the same value for the variable and when incrementing the variable will only increment once.\\
+		To counteract this lock can be used. This is where code snippets are ran syncronised and threads are not able to execute twice.
+	\subsection{Unmutable objects}
+		Most often objects are a problem of race conditions.\\
+		To counteract this an object is made unmutable.\\
+		This means the object:
+		\begin{itemize}
+			\item is not including setters
+			\item is not including references to itself
+			\item has only final methods and variables
+			\item is private such no method is overwritten
+		\end{itemize}
+\section{Threading in Java}
+	Threading is done thorugh the $Thread$ object which takes a runable object as an argument.\\
+	The thread is then executed by $start()$ and $join()$ is used as a wait till a thread is done.\\
+	If join is not used the main thread will stop its execution before child threads are done.\\
+\begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
+Thread t1 = new Thread( () -> {for(int i = 0; i < 1000; {i++; System.out.println(i);})});
+t1.start();
+try{
+	t1.join();
+}
+catch(InterruptedException e) {e.printStackTrace();}
+\end{lstlisting}
+	The try is due to threads may be interrupted, which otherwise would case the program to halt, due to the thread never joining.\\
+	For when working with locks in java the following can be done:
+\begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
+private static class Counter {
+	private int c = 0;
+}
+
+public static void main() {
+	Thread t1 = new Thread( () -> {for(int i = 0; i < 1000; i++) {
+		synchronized( counter ) {
+			counter.c++;
+		}
+	});
+	t1.start();
+	Thread t2 = new Thread( () -> {for(int i = 0; i < 1000; i++) {
+		synchronized( counter ) {
+			counter.c++;
+		}
+	});
+	t2.start();
+	try{
+		t1.join();
+		t2.join();
+	}
+	catch(InterruptedException e) {e.printStackTrace();}
+\end{lstlisting}	
+	The synchronized will here lock the counter object before access from which the code is executed. This will ensure that c is equal 2000.\\
+	Another way is to making a whole method syncronised by:
+	\begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
+private synchronized void increment() {
+	 i++;
+}
+\end{lstlisting}
 \end{document}
