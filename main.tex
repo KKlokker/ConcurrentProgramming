@@ -218,4 +218,35 @@ private synchronized void increment() {
 	 i++;
 }
 \end{lstlisting}
+	\section{Safe shared objects}
+		Shared objects between threads can introduce many dangers, mainly that thread can be sure to read the same value it just wrote.\\
+		Stale data is term for none up to date values from shared objects which can lead to non expected outcomes.\\
+		A solution for this is syncronizing the shared object. By this only one thread can access the shared object at a time, therefore ensuring no stale data.\\
+		Another solution is all variables being local to each threat\\[4mm]
+		In Java there is a safety gurantee to variables, that once updated they are fully dated. Unless the type of variable is long or double, due to the 64 bit required data, it is updated by two times of 32 bit each, therefore half updated values may accour.\\
+		Syncronization is done by locking the given object, such no other thread can access it. \\[4mm]
+		Volatile variables are a weak syncronised variable, due to not ensuring atomicity. It is not as safe, but can be used for veryfying states rather correctness.\\
+		Therefore volatile variables should only be used when its value does not depend on current value or only one threads updates aswell as the variable not participating in invariants.\\[4mm]
+		Ad-hoc thread confinement is a way of describing how an object may only be in certain safe ways. This is ofcourse not a stable way of implementing objects.\\
+		A more stable alternative is stack confinement, where reference an variables are all local to a thread.\\
+		ThreadLocal solves helps to ensure no leaks could accour in stack confiment, by making an object with variables which can not be accessed outside a thread.\\
+		Another way is an immutable object, which is a final object which only contains final fields, can not be modified and construction has not been escaped.\\
+		It is not enough to just make the object reference final, due to the object itself being able to change its variables.\\
+		The immutable object may also be good in case of outside methods, this ensures that the methods may not change anything or save a reference.\\
+		A object may be treated as ummutable such as the date object, but it requires clear documentation.\\
+		
+		\subsection{Constructing objects}
+			When constructing objects it is important, that a reference to the object not escape before initialization.\\
+			This can result in half initialized objects being treated as done.\\
+			To prevent this a static initializer may be used, which creates the object, parses it to a method which makes it public and returns the reference.
+		\subsection{Thread safe classes}
+			First the invariant variables are identified and variables for object states. Such they can get policy according to use.\\
+			State-depend operations are preconditions on operations, which also acts as a policy for the class.\\
+			It will always be easier to encapsulate methods for objects such syncronised always has the correct lock.\\
+			Remember to always use thread safe classes, to make life easier but still remember to handle them safely.\\
+			When access multiple variables wich relates send them as tuples, such they always are syncronized.\\
+			A thread safe class may include public variables, which has to be handled safe but in some cases it makes sense to make them public.\\
+			Some class may have to be extended with a syncronised method, such as a list extension with a method for adding of absent.\\
+			A custom lock may also be but in a method Ex. public boolean m() \{ synchronzed(list) \{...\}\}, use the list variable as a custom lock.\\
+			
 \end{document}
