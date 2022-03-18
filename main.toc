@@ -1,0 +1,21 @@
+\contentsline {section}{\numberline {1}Introduction}{3}{section.1}%
+\contentsline {section}{\numberline {2}Anonymous,- and lambdafunctions}{3}{section.2}%
+\contentsline {section}{\numberline {3}Streams}{5}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Parrallel streams}{6}{subsection.3.1}%
+\contentsline {section}{\numberline {4}Bugs and solutions of parallelizing}{6}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Race conditions}{7}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Unmutable objects}{7}{subsection.4.2}%
+\contentsline {section}{\numberline {5}Threading in Java}{7}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Syncronize}{8}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Spin lock}{9}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Latches}{9}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Future task}{10}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Semaphores}{10}{subsection.5.5}%
+\contentsline {subsection}{\numberline {5.6}Barriers}{10}{subsection.5.6}%
+\contentsline {subsection}{\numberline {5.7}Iterating over safe objects}{10}{subsection.5.7}%
+\contentsline {subsection}{\numberline {5.8}Thread safe classes}{10}{subsection.5.8}%
+\contentsline {subsection}{\numberline {5.9}Using queues}{11}{subsection.5.9}%
+\contentsline {subsection}{\numberline {5.10}Thread optimization}{11}{subsection.5.10}%
+\contentsline {section}{\numberline {6}Safe shared objects}{11}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Constructing objects}{12}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Thread safe classes}{12}{subsection.6.2}%

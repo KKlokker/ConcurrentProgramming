@@ -186,7 +186,10 @@ try{
 catch(InterruptedException e) {e.printStackTrace();}
 \end{lstlisting}
 	The try is due to threads may be interrupted, which otherwise would case the program to halt, due to the thread never joining.\\
-	For when working with locks in java the following can be done:
+
+	\subsection{Syncronize}
+		In java the syncronize keyword is used to lock objects or methods, such race conditions are prevented.\\
+		An exampel of the use of syncronization can be seen below.
 \begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
 private static class Counter {
 	private int c = 0;
@@ -218,6 +221,65 @@ private synchronized void increment() {
 	 i++;
 }
 \end{lstlisting}
+		\subsection{Spin lock}
+			Spin locks are an alternative to syncronizing.\\
+			The way it works, is a global atomic boolean variable is set, and used as being true if the object is locked.\\
+			Then instead of writing syncronized it can be written as followed:
+\begin{lstlisting}[langauge = Java, frame = trBL, firstnumber = 0, escapeinsed={(*@}{@*)}]
+Thread t = new Thread( () -> {for(int i = 0; i < 1000; i++) {
+	while(!locked.compareAndSet(false,true)){}
+	counter.c++;
+	locked.set(true);
+	}
+});
+}
+\end{lstlisting}
+			Here compareAndSet is an atomic function which compares to the second argument an returns true if equal. If not then it reutrns false and set the value equal to the first argument.\\
+			
+		\subsection{Latches}
+			When working with many threads, instead of using each threads join method, a CountDownLatch can be used.\\
+			The latch is initialized with the amount of threads which will be used: CountDownLatch latch = new CountDownLatch(10);\\
+			Then every thread should end with: latch.countDown();\\
+			Because then when joining the following can be done:
+\begin{lstlisting}[Language = Java, frame = trBL, firstnumber = 0]
+	try{
+		latch.await();
+	}
+	catch(InterruptedException e) {e.printStackTrace();}
+\end{lstlisting}
+			Latches may also be used, to wait for all threads to be initialized before starting, in case of benchmark or such.\\
+		\subsection{Future task}
+			A future task object, is a threading object, which takes a task.\\
+			The object can be called with $.get()$ which will return the result of the task.\\
+			When the task is done, the object stays in the finished state.\\
+			This can be used in case of a cache, where earlier results are in a hash table in form of future tasks.
+		\subsection{Semaphores}
+			Semaphores are objects, which is used to manage the amount of threads in a pool.\\
+			It does this using permits, which are given to a thread to start a task.\\
+			When the task is done the permit is given back to the semaphore.\\
+			These are very usefull in cases of API's which has a maximum amount of connections.
+		\subsection{Barriers}
+			Barriers are a lot like lateches.\\
+			These work to ensure every thread is at the same point.\\
+			This may be used in simulations, where data from another thread is needed, and it is needed to know that the data is already computed or at the same point in time.
+		\subsection{Iterating over safe objects}
+			Iterating over a thread safe object may lead to problems. The most common method of to simply try iterate and in case of a change in the collection a \textit{ConcurrentModificationException} will be thrown.\\
+			There is other solutions including locking the obejct while iterating or creating a clone of the object and iterator throught it.\\
+			Remember to be carefull of hidden iterations, this can be things like $toString()$ which iterates through some object and converts it into chars for a string.
+		\subsection{Thread safe classes}
+			Threads safe classes are a good way to make code thread safe. These classes includes ConcurrentHashMap and CopyOnWriteArrayList.\\
+			These classes does not eliminate concurrency errors, self made check then write errors can still accour, but the classes include function for thos purposes.
+		\subsection{Using queues}
+			Queues provide a method for using the producer consumer pattern.\\
+			This pattern uses most often block queues to store task, created by producer which consumers can perform when possible.\\
+			The pattern also helps making code more readable, by dividing it into creating task and performing tasks.\\
+			Queues also handles throttling due to it being able to handle a maximum amount of tasks which is being asked for at once.\\
+			The queue acts as a middleman for storing the tasks and ensures ownership of objects are changed.\\
+			In case of the consumer also being a producer a deque (pronounced 'deck') is used, which is a queue with fast accessing both head and tail, to insert and remove tasks.\\
+		\subsection{Thread optimization}
+			To use threads efficiently are states used. These stated includes BLOCKED, WAITING or TIMED_WAITING.\\
+			By using these states threads, can be interrupted and used for another task meanwhile waiting or being blocked.\\
+			A thread can also be interrupted by another thread. Though the thread will continue until a point which makes sense, which may be when it is done.
 	\section{Safe shared objects}
 		Shared objects between threads can introduce many dangers, mainly that thread can be sure to read the same value it just wrote.\\
 		Stale data is term for none up to date values from shared objects which can lead to non expected outcomes.\\
