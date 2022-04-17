@@ -173,6 +173,22 @@ words.stream().parallelStream().reduce(0,(sum,s) -> sum + s.length(), (sum1, sum
 			\item has only final methods and variables
 			\item is private such no method is overwritten
 		\end{itemize}
+	\subsection{Low level thread locking}
+		The low level method for locking threads used in libraries uses an object and it ability to wait() and notify().\\
+		\begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
+synchronized(monitor) {
+	try {
+		monitor.wait();
+	} catch(InterruptedException e) e.printStackTrace();
+}
+.
+.
+.
+synchronized(monitor) { monitor.notify();}
+		\end{lstlisting}
+		This code will in one thread use the try catch which will wait for the object called monitor. Then in another thread the monitor is notified.\\
+		The problem is if the monitor is notified before the other thread is waiting the thread will never escape the wait.\\
+		So another boolean is needed such after a notify it is changed and the try is in an if to the boolean.
 \section{Threading in Java}
 	Threading is done thorugh the $Thread$ object which takes a runable object as an argument.\\
 	The thread is then executed by $start()$ and $join()$ is used as a wait till a thread is done.\\
@@ -225,7 +241,7 @@ private synchronized void increment() {
 			Spin locks are an alternative to syncronizing.\\
 			The way it works, is a global atomic boolean variable is set, and used as being true if the object is locked.\\
 			Then instead of writing syncronized it can be written as followed:
-\begin{lstlisting}[langauge = Java, frame = trBL, firstnumber = 0, escapeinsed={(*@}{@*)}]
+	\begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
 Thread t = new Thread( () -> {for(int i = 0; i < 1000; i++) {
 	while(!locked.compareAndSet(false,true)){}
 	counter.c++;
@@ -241,7 +257,7 @@ Thread t = new Thread( () -> {for(int i = 0; i < 1000; i++) {
 			The latch is initialized with the amount of threads which will be used: CountDownLatch latch = new CountDownLatch(10);\\
 			Then every thread should end with: latch.countDown();\\
 			Because then when joining the following can be done:
-\begin{lstlisting}[Language = Java, frame = trBL, firstnumber = 0]
+	\begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
 	try{
 		latch.await();
 	}
@@ -276,8 +292,40 @@ Thread t = new Thread( () -> {for(int i = 0; i < 1000; i++) {
 			Queues also handles throttling due to it being able to handle a maximum amount of tasks which is being asked for at once.\\
 			The queue acts as a middleman for storing the tasks and ensures ownership of objects are changed.\\
 			In case of the consumer also being a producer a deque (pronounced 'deck') is used, which is a queue with fast accessing both head and tail, to insert and remove tasks.\\
+			This can be implemented as:
+	\begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
+int maxThreads = Runtime.getRuntime().availableProcessors() -1;
+CountdownLatch latch = new CountDownLatch(maxThreads);
+final BlockingDeque<Optional<Path>> tasks = new LinkedBlockingDeque<>();
+IntStream.range(0,maxThreads).forEach( i -> {
+	new Thread(() -> {
+		try {
+			Optional<Path> task;
+			do {
+				task = tasks.take();
+				task.ifPresent( object -> function(object));
+			} while(task.isPresent());
+			tasks.add(task);
+		} catch(InterruptedException e) {}
+		latch.countDown();
+	}).start();
+}
+\end{lstlisting}
+			This code gets the number of avaliable threads minus the current thread, the creates a queue and latch.\\
+			Then threads are created according to the amount of avaliable threads, which takes task from the queue until an empty Optional.\\
+			It adds it again so other threads also can stop.\\
+			The reason the use a pool of threads is due to the time makign threads and too many threads needs switching between by the CPU if there are more threads than cores.\\
+		\subsection{Executor framework}
+			The executor framework is a framework to work with pools of threads.\\
+			It implements a number of threads and a task queue.
+	\begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
+private static final Executor exec = Executors.newFixedThreadPool(n);
+exec.execute(task);
+\end{lstlisting}
+			This code creates a form of executor with a fixed number of threads, from which execute on runnable called task.\\
+			The framework also support ScheduledThreadPoolExecutor for timed tasks which should be used over the timer class.
 		\subsection{Thread optimization}
-			To use threads efficiently are states used. These stated includes BLOCKED, WAITING or TIMED_WAITING.\\
+			To use threads efficiently are states used. These stated includes BLOCKED, WAITING or TIMED$\_$WAITING.\\
 			By using these states threads, can be interrupted and used for another task meanwhile waiting or being blocked.\\
 			A thread can also be interrupted by another thread. Though the thread will continue until a point which makes sense, which may be when it is done.
 	\section{Safe shared objects}

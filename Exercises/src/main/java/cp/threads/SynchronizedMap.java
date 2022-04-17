@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,10 +17,9 @@ public class SynchronizedMap {
 		// word -> number of times that it appears over all files
 		Map< String, Integer > occurrences = new HashMap<>();
 		
-		List< String > filenames = List.of(
-					 			"text1.txt",
-					  			"text2.txt"
-							);
+		List< String > filenames = new ArrayList<>();
+		filenames.add("text1.txt");
+		filenames.add("text2.txt");
 		
 		CountDownLatch latch = new CountDownLatch( filenames.size() );
 		AtomicInteger totalN = new AtomicInteger(0);
