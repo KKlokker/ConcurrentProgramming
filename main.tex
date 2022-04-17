@@ -358,5 +358,68 @@ exec.execute(task);
 			A thread safe class may include public variables, which has to be handled safe but in some cases it makes sense to make them public.\\
 			Some class may have to be extended with a syncronised method, such as a list extension with a method for adding of absent.\\
 			A custom lock may also be but in a method Ex. public boolean m() \{ synchronzed(list) \{...\}\}, use the list variable as a custom lock.\\
-			
+	\section{Cancellation and Shutdown}
+		A thread may be shutdown, due to user input or another thread already finding the answer.\\
+		The most simple solution is a volatile boolean, which is set to true when a thread should be cancelled.\\
+		Then in the thread check for the boolean is done if true then return.\\
+		\subsection{Interruption}
+			Interruption is a great way to cancel a thread, but it got downsides.\\
+			When a thread is interrupted a flag in the thread is raised and when it reaches a cancellation point it will stop.\\
+			To ensure a thread is cancelled correctly a new thread class as an extension of Thread is created such the cancel() can be overwritten.\\
+			The most simple cancel method is for it to just call interrupt(), which raises the flag, and when a cancel point is reached an interruptedException is thrown in run().\\
+			In case of insuring code is stopped due to no cancel point is using Thread.currentThread().isInterrupted() which returns the interrupted status. It should be noted that if true the flag is removed so, raising it again is often needed.\\[4mm]
+			Threads may have different policies towards what an interruption should result in.\\
+			Most often either it propagates the interrupt, by the method throwing an InterruptedException.\\
+			Or restore the interupt, this is done by in the catch to call interrupt() again.\\[4mm]
+			Some tasks may not be cancellable, these should keep trying in a loop and catch possible interrupts which then set a global boolean to true. Such when the work is done in a finally if the global boolean is true is run Thread.currentThread.interrupt(), such the interrupt still shows.\\[4mm]
+			Some code may rely on a socket or a like where the cancel may also have to close a socket to shutdown a thread.\\
+			In case of a task with a limited time, a Future can be used. Future have the method .get(time,unit) which starts athread and ends it in the given time.\\
+		\subsection{Shutdown of thread-based service}
+			There are cases where a shutdown of multiple threads have to be initiated.\\
+			ExecutorService got two methods for clossing all threads shutdown() and shutdownNow() which returns infinished tasks.\\
+			For a more manual approach a poison pill can be used. This way on the queue a task representing the poison pill is placed. Once a consumer meets the pill it stops.\\
+			By this method the queue will always be emptied before shutdown. The biggest problem is the amount of consumer is needed to be known, such an equal amount or more is placed in the queue.\\
+			The problem with shutdownNow() is some tasks may get lost if they where halfway done. An extension of AbstractExecutorService can here be made such a more custom approach may be taken to the given task.\\
+			If a thread is running poor code, a handler for runtime exceptions may be needed. Unlike normal program flow a runtime exception will crash a thread but the main program will continue.\\
+			For this the UncaughtExceptionHandler inmterface can be used, for handling the exception in a thread.\\[4mm]
+			A shutdown hook may be needed in some cases, to controle the order which threads are shutdown, so fx. a logger thread is closed last.\\
+
+	\section{Liveness hazards}
+		Liveness hazards are different program breaking problems which can occur due to bad programming.
+		\subsection{Deadlocks}
+			Deadlocks are the case when two threads are holding a lock and waiting for eachothers lock.\\
+			The most easy way to ensure this does not happend is to keep the order of locks the same.\\
+			This is done manually or if locks are user input the order can come from the smallest hash code.\\
+			To make life easy methods should always use open calls, which a method calls outside locks. Calls inside locks may leads to unexpected deadlocks.\\
+			A deadlock can also be on a resource. This may be a lock upon a connection, socket or CPU, which also may lead to a deadlock.
+			In cases where the locking can not be assured the tryLock which waits for a lock in a given time. This is not ideal but may be a solution.\\
+			In case of a deadlock the thread dump will include information about which locks and from where the deadlock accoured.\\
+		\subsection{Starvation}
+			A starved thread is a thread which does not have access ressource most often the CPU.\\
+			This most often occour when threads are forced into thread prioties.\\
+			Normally the OS can prioties threads such CPU starvation is not an issue.\\
+			The only cause for forcing a priority is for big background tasks.
+		\subsection{Livelock}
+			Livelocks are a form of infinite loops.\\
+			The loop may always lock some object or just result in starvation.\\
+			The loop is often a problem aroused of non recoverable errors which is treated as recoverable.\\
+			The result of this is the error is repeatebly tried, to just result in a new error task.
+	\section{Performance and Scalability}
+		The first priority is always getting it to work. From this point performance may be optimized, but only if needed due to optimization often leads to bugs.\\
+		When talking about performance there are different forms, mainly througput and speed.\\
+		When optimization it is therefore needed to know what performance should be optimized and in which scenarios, a lot of light work or heavy load.\\
+		To begin optimization a library can be used to measure times stamps such, the slow areas can be detected rather than guessed.\\
+		\subsection{Amount of threads}
+			The amount of threads often has to be well though through.\\
+			The easy solution is for simple application match the number of cores the number of threads.\\
+			But in some cases more may lead to faster work, due to if a thread is locked out and waiting another thread can be context switched in.\\
+			Too many threads will also slow down due to too much switching when not needed.\\
+			vmstat can be used to see amount of switches and kernel usage, which should be under 10\%\\
+		\subsection{Locks}
+			Locks should be as minimal as possible, to some extend such four locks should not be in a row but rather together.\\
+			If a thread seems to alone using a single object, a lock may be put on anyways, due to the compiler being able to remove the synchronization.\\
+			A way to optimize is reducing the scope of a lock. An example is the the concurrentMap which divides the table list into section such smaller sections are locked.\\
+			Concurrent version of ovjects should always be used, such as atomic variables and concurrent maps and such.\\
+
+
 \end{document}
