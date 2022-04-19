@@ -2,42 +2,36 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class ConcurrentMap
 {
-	public static void main() throws IOException
+	public static void main() 
 	{
         //Modified version of example original code by Fabrizio Montesi <fmontesi@imada.sdu.dk>
 		// word -> number of times that it appears over all files
 		Map< String, Integer > occurrences = new ConcurrentHashMap<>();
+		//In this case the fixedPool woul probably be more optimal with only 3 files to work with
+		ExecutorService executor = Executors.newWorkStealingPool();
 		
-		List< String > filenames = new ArrayList<>();
-		filenames.add("threads/text1.txt");
-		filenames.add("threads/text2.txt");
-		
-		
-		CountDownLatch latch = new CountDownLatch( filenames.size() );
-		
-		
-
+		//CountDownLatch latch = new CountDownLatch( filenames.size() );
 		try {
 			Files.walk( Paths.get( "textFiles" ) )
 			.filter( Files::isRegularFile )
-			.map( filename -> new Thread( () -> {
+			/*.map( filename -> new Thread( () -> {
 				computeOccurrences( filename, occurrences );
 				latch.countDown();
-			} ) )
-			.forEach( Thread::start );
-			latch.await();
-			occurrences.forEach( (word, n) -> System.out.println( word + ": " + n ) );
-		} catch( InterruptedException e ) {
-			e.printStackTrace();
+			} ) )*/
+			.forEach(filename -> {executor.submit(() -> {computeOccurrences( filename, occurrences );});});
 		}
+		catch(IOException e) { e.printStackTrace();}
+		//latch.await();
+		occurrences.forEach( (word, n) -> System.out.println( word + ": " + n ) );
+		
 		
 //		occurrences.forEach( (word, n) -> System.out.println( word + ": " + n ) );
 	}

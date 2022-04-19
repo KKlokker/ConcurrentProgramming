@@ -120,6 +120,8 @@ words.stream().flatmap(word -> Stream.of(word.split("a"));
 words.stream().collect(Collectors.toList());
 //Reduce takes a stream and makes a single element Ex. this takes the longest string
 words.stream().reduce((s1,s2) -> s1.length() > s2.length() ? s1 : s2);
+//Stops all stream even if parrallel and returns true if found oterwhise keeps running returns false if not exist
+.anyMatch(word -> word.equals("test"));
 \end{lstlisting}
 		The functions can then be chaineed together, so methods which returns a stream can be worked upon.\\
 		When working with file stream it is done as following:
@@ -153,7 +155,8 @@ words.stream().parallelStream().reduce(0,(sum,s) -> sum + s.length(), (sum1, sum
 		\item accumulator - takes current result and element and operatoes
 		\item Combiner - takes two partial accumulators and combines them
 	\end{itemize}
-	Like sot the $sort()$ function will either wait for all parralle streams or use parralell sorting in large amounts.
+	Like sot the $sort()$ function will either wait for all parralle streams or use parralell sorting in large amounts.\\
+	Be aware that parrallle streams will take the main thread into the work, therefore when accessing the hardrive or such, all paths should be gathered beforehand.
 \section{Bugs and solutions of parallelizing}
 	When working with parrallel threads it is important to encapsulate as much as possible. Threads may access data outside it thread, but this can lead to some of the following bugs.
 	\subsection{Race conditions}
@@ -269,6 +272,19 @@ Thread t = new Thread( () -> {for(int i = 0; i < 1000; i++) {
 			The object can be called with $.get()$ which will return the result of the task.\\
 			When the task is done, the object stays in the finished state.\\
 			This can be used in case of a cache, where earlier results are in a hash table in form of future tasks.
+		\subsection{CompletableFuture}
+			Much like a future task, but has advantages, in some scenarios.\\
+			The CompletableFuture are able to subit task itself to a threadPool and can handle themselves after done.\\
+			
+	\begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
+CompletableFuture<Void>[] futures = files.foreach( file -> CompletableFuture
+	.supplyAsync( () -> task())
+		.thenAccept(fileInfo - > task())
+	.collect(Collectors.toList()
+		.toArray(new CompleteableFuture[0]);
+CompletableFuture.allOf(futures).join();
+			\end{lstlisting}
+			Here the task is created with CompleteableFuture.suppeAsync, handled when done by thenAccept, and all threads are shutdown after by the allOf().
 		\subsection{Semaphores}
 			Semaphores are objects, which is used to manage the amount of threads in a pool.\\
 			It does this using permits, which are given to a thread to start a task.\\
@@ -284,7 +300,8 @@ Thread t = new Thread( () -> {for(int i = 0; i < 1000; i++) {
 			Remember to be carefull of hidden iterations, this can be things like $toString()$ which iterates through some object and converts it into chars for a string.
 		\subsection{Thread safe classes}
 			Threads safe classes are a good way to make code thread safe. These classes includes ConcurrentHashMap and CopyOnWriteArrayList.\\
-			These classes does not eliminate concurrency errors, self made check then write errors can still accour, but the classes include function for thos purposes.
+			These classes does not eliminate concurrency errors, self made check then write errors can still accour, but the classes include function for thos purposes.\\
+			THe most optimal methods are still if possible using the collect method of a stream, this is thread safe and faster.
 		\subsection{Using queues}
 			Queues provide a method for using the producer consumer pattern.\\
 			This pattern uses most often block queues to store task, created by producer which consumers can perform when possible.\\
@@ -318,12 +335,34 @@ IntStream.range(0,maxThreads).forEach( i -> {
 		\subsection{Executor framework}
 			The executor framework is a framework to work with pools of threads.\\
 			It implements a number of threads and a task queue.
+			By defualt the newWorkStrealingPool() should be used due to it optimizing itself in many scenarios.\\
+			Other implementations may be newFixedThreadPool(n) and newCachedThreadPool() which creates new threads and cache them for a small time after.\\
 	\begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
-private static final Executor exec = Executors.newFixedThreadPool(n);
-exec.execute(task);
+private static final Executor exec = Executors.newWorkStealingPool();
+exec.submit(() -> task());
 \end{lstlisting}
 			This code creates a form of executor with a fixed number of threads, from which execute on runnable called task.\\
-			The framework also support ScheduledThreadPoolExecutor for timed tasks which should be used over the timer class.
+			The framework also support ScheduledThreadPoolExecutor for timed tasks which should be used over the timer class.\\
+			To shutdown the executor the following can be done:
+	\begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
+try{
+	executor.shutdown();
+	executor.awaitTermination(1,TimeUnit.DAYS);
+} catch (InterruptedException e) { e.printStackTrace();}
+			\end{lstlisting}
+		\subsection{ExecutorCompletionService}
+			This is a object which helps with working with futures.\\
+			The point of the object is to, gather all futures submitted to threads from which it can return finised futures, such there is no order of which they need to finish.\\
+			
+	\begin{lstlisting}[language = Java , frame = trBL , firstnumber = last , escapeinside={(*@}{@*)}]
+ExecutorService executor = Executor.newWorkStrealingPool();
+ExecutorCompletionService<Map <String, Integer>> completionService = new ExecutorCompletionService<>(executor);
+for..
+	completionService.submit( () -> task());
+for everyTask
+	Map<String, Integer> file = completionService.take().get();
+			\end{lstlisting}
+
 		\subsection{Thread optimization}
 			To use threads efficiently are states used. These stated includes BLOCKED, WAITING or TIMED$\_$WAITING.\\
 			By using these states threads, can be interrupted and used for another task meanwhile waiting or being blocked.\\

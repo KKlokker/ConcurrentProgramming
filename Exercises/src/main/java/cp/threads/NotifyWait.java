@@ -1,0 +1,50 @@
+import java.util.concurrent.atomic.AtomicBoolean;
+
+//Modified version of example original code by Fabrizio Montesi <fmontesi@imada.sdu.dk>
+public class NotifyWait
+{
+	private static final Object monitor = new Object();
+	private static boolean t2Done = false;
+    private static AtomicBoolean t1Done = new AtomicBoolean();
+	
+	public static void main()
+	{
+        t1Done.set(false);
+		Thread t1 = new Thread( () -> {
+			synchronized( monitor ) {
+				if ( !t2Done ) {
+					try {
+						monitor.wait();
+					} catch( InterruptedException e ) {
+						e.printStackTrace();
+					}
+				}
+			}
+			System.out.println( "Hello from t1" );
+            t1Done.set(true);
+		} );
+		
+		Thread t2 = new Thread( () -> {
+			System.out.println( "Hello from t2" );
+			synchronized( monitor ) {
+				monitor.notify();
+				t2Done = true;
+			}
+		} );
+		
+		Thread t3 = new Thread( () -> {
+            while(!t1Done.get()){}
+			System.out.println( "Hello from t3" );
+		} );
+		
+		t1.start();
+		t2.start();
+        t3.start();
+		try {
+			t1.join();
+			t2.join();
+		} catch( InterruptedException e ) {
+			e.printStackTrace();
+		}
+	}
+}
