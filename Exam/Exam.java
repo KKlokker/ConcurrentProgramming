@@ -4,29 +4,19 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.BreakIterator;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /*
-This is the exam for Concurrent Programming, Spring 2022.
+This is the exam for DM563 - Concurrent Programming, Spring 2022.
 
 Your task is to implement the following methods of class Exam:
 - findWordsCommonToAllLines;
@@ -48,8 +38,9 @@ you cannot edit method main.
 The current code of these methods throws an UnsupportedOperationException: remove that line before
 proceeding on to the implementation.
 
-Original code by Fabrizio Montesi <fmontesi@imada.sdu.dk>
-	
+You can find a complete explanation of the exam rules at the following webpage.
+
+https://github.com/fmontesi/cp2022/tree/main/exam
 */
 public class Exam {
 	// Do not change this method
@@ -62,30 +53,25 @@ public class Exam {
 						"Available commands: help, allLines, longestLine, vowels, or suffix.\nFor example, try:\n\tjava Exam allLines data");
 				break;
 			case "allLines":
-				Utils.doAndMeasure(() -> {
 				checkArguments(args.length == 2, "Usage: java Exam.java allLines <directory>");
 				List<LocatedWord> uniqueWords = findWordsCommonToAllLines(Paths.get(args[1]));
 				System.out.println("Found " + uniqueWords.size() + " words");
 				uniqueWords.forEach( locatedWord ->
 					System.out.println( locatedWord.word + ":" + locatedWord.filepath ) );
-				});
 				break;
 			case "longestLine":
-			Utils.doAndMeasure(() -> {
 				checkArguments(args.length == 2, "Usage: java Exam.java longestLine <directory>");
 				Location location = longestLine(Paths.get(args[1]));
 				System.out.println("Line with highest number of letters found at " + location.filepath + ":" + location.line );
-			});
 				break;
 			case "vowels":
-			Utils.doAndMeasure(() -> {
 				checkArguments(args.length == 3, "Usage: java Exam.java vowels <directory> <vowels>");
 				int vowels = Integer.parseInt(args[2]);
 				Optional<LocatedWord> word = wordWithVowels(Paths.get(args[1]), vowels);
 				word.ifPresentOrElse(
 						locatedWord -> System.out.println("Found " + locatedWord.word + " in " + locatedWord.filepath),
 						() -> System.out.println("No word found with " + args[2] + " vowels." ) );
-					});break;
+				break;
 			case "suffix":
 				checkArguments(args.length == 4, "Usage: java Exam.java suffix <directory> <suffix> <length>");
 				int length = Integer.parseInt(args[3]);
@@ -141,25 +127,32 @@ public class Exam {
 				.parallel()
 				.filter(file -> file.toString().endsWith(".txt"))
 				.forEach(file -> {
-					AtomicBoolean isInit = new AtomicBoolean(false);
-					new ConcurrentHashMap<>();
+					AtomicBoolean isInit = new AtomicBoolean(false); //Used to make set equal to all words of first line
 					Set<String> fileSet = ConcurrentHashMap.newKeySet();
 					try {
 						Files.lines(file)
 						.parallel()
-						.forEach(line -> {
+						.anyMatch(line -> {
+							//Gets set of all words in lower case
 							Set<String> wordSet = extractWords(line)
 								.map( String::toLowerCase)
 								.collect(Collectors.toSet());
-							if(wordSet.size() != 0) {
-								if(!isInit.getAndSet(true)) fileSet.addAll(wordSet);
-								else fileSet.retainAll(wordSet);
+
+							if(wordSet.size() != 0) { //Ignore if line is empty
+								//Initialize set, by adding all words of first line
+								if(!isInit.getAndSet(true)) fileSet.addAll(wordSet); 
+								//If the set is 0 after init just stop reading lines from file
+								else if(fileSet.size() == 0) return true; 
+								//Make intersect between current words in common and words in line
+								else fileSet.retainAll(wordSet); 
 							}
+							return false; //Check for another line
 						});
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
-					for(String word: fileSet) returnList.add(new LocatedWord(word, file));
+					//create LocatedWord for every common word in file
+					for(String word: fileSet) returnList.add(new LocatedWord(word, file)); 
 				});
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -167,24 +160,30 @@ public class Exam {
 		return returnList;
 	}
 
+	/**
+	 * Creates a stream of words from a string
+	 * @param s the string of which the words are found
+	 * @return A stream of words
+	 */
 	private static Stream< String > extractWords( String s ) {
 		List< String > words = new ArrayList<>();
 		
 		BreakIterator it = BreakIterator.getWordInstance();
-		it.setText( s );
+		it.setText(s);
 		
 		int start = it.first();
 		int end = it.next();
 		while( end != BreakIterator.DONE ) {
-			String word = s.substring( start, end );
-			if ( Character.isLetterOrDigit( word.charAt( 0 ) ) ) 
-				words.add( word );
+			String word = s.substring(start, end);
+			if ( Character.isLetterOrDigit(word.charAt(0))) 
+				words.add(word);
 			start = end;
 			end = it.next();
 		}
 		
 		return words.stream();
 	}
+
 	/** Returns the line with the highest number of letters among all the lines
 	 * present in the text files contained in a directory.
 	 *
@@ -206,9 +205,7 @@ public class Exam {
 	 * @return the line with the highest number of letters found among all text files inside of dir
 	 */
 	private static Location longestLine(Path dir) {
-		Location lineLocation = new Location(null, 0);
-		int length = 0;
-		List<LocationLength> fileLengths = new ArrayList<>();
+		LocationLength fileLength = new LocationLength(-1, 0, Paths.get(""));
 		try {
 			Files
 				.walk(dir)
@@ -216,60 +213,116 @@ public class Exam {
 				.filter(file -> file.toString().endsWith(".txt"))
 				.forEach(file -> {
 					try {
-						List<LocationLength> fileSentences = new ArrayList<>();
-						AtomicInteger lineNumber = new AtomicInteger(0); //TODO another wrapper object for integer may be more efficient
+						//Finding the longest line in each file
+						LocationLength sentenceLength = new LocationLength(-1,0,Paths.get(""));
+						Counter lineCounter = new Counter(); 
+						//Executor used for parrellizing lines, but still making the task in order to get line numbering
 						ExecutorService service = Executors.newWorkStealingPool();
-						
 						Files.lines(file)
 							.forEach((line) -> {
-								service.submit(() -> lengthAdd(fileSentences, line, lineNumber.incrementAndGet(), file));
+								//The line number must be saved before submitted, otherwise wrong line numbers are used
+								int lineNumber = lineCounter.incrementAndGet(); 
+								service.submit(() -> lengthAdd(sentenceLength, line, lineNumber, file));
 							});
 						service.shutdown();
-						service.awaitTermination(15, TimeUnit.SECONDS);
-
-						fileLengths.add(fileSentences.get(0));
-					} catch (IOException e) {
-						e.printStackTrace();
-					} catch (InterruptedException e) {
+						//Here the executor has 1 day for shutdown, this is for very big use cases, but has to be high due to unknown use
+						service.awaitTermination(1,TimeUnit.DAYS);
+						//Test if the files longest line is bigger than the current biggest
+						synchronized(fileLength) {
+							trySwitch(fileLength,sentenceLength);
+						}
+					} catch (IOException | InterruptedException e) {
 						e.printStackTrace();
 					}
 				});
-
-			for(int i = 0; i < fileLengths.size(); i++)
-				if(
-					fileLengths.get(i).length > length || 
-					fileLengths.get(i).length == length && 
-					fileLengths.get(i).loc.filepath.compareTo(lineLocation.filepath) < 0
-				) {length = fileLengths.get(i).length; lineLocation = fileLengths.get(i).loc;}
 			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-
-		return lineLocation;
+		return fileLength.loc;
 	}
 
-	private static void lengthAdd(List<LocationLength> list, String line, int lineNumber, Path file) {
-		line = line.replaceAll("[^a-zA-Z]", "");
+	/**
+	 * Function for taking the current longest line, if the current given line is bigger then updating the longest line
+	 * @param currentBest Current longest line found
+	 * @param line The string of the line
+	 * @param lineNumber The line number in the file
+	 * @param file The path to the file of which the line exist
+	 */
+	private static void lengthAdd(LocationLength currentBest, String line, int lineNumber, Path file) {
+		//Rough filtering of lines which are smaller before filtering
+		if(line.length() < currentBest.length) return;
 		
-		synchronized(list) {
-			if(list.size() == 0) list.add(new LocationLength(line.length(), lineNumber, file));
-			else if(
-				line.length() > list.get(0).length || 
-				line.length() == list.get(0).length && 
-				list.get(0).loc.filepath.compareTo(file) < 0
-			) {list.remove(0); list.add(new LocationLength(line.length(), lineNumber, file));}
+		int count = 0;
+		//Count each character which is a letter using ascii
+		for(int i = 0; i < line.length(); i++) {
+			char ch = Character.toLowerCase(line.charAt(i));
+			if(96 < ch && ch < 123) count++;
 		}
-	
+		LocationLength lineLoc = new LocationLength(count,lineNumber,file);
+		synchronized(currentBest) {
+			trySwitch(currentBest,lineLoc);
+		}
 	}
 		
+	/**
+	 * Method for exhanging two locationLength in case one is bigger 
+	 * or equal and the new LocationLength file is lexicographically lower
+	 * or if file name is also the same the lowest line number
+	 * @param oldLocLength The old LocationLength
+	 * @param newLocLength The new LocationLength
+	 */
+	private static void trySwitch(LocationLength oldLocLength, LocationLength newLocLength) {
+		if(
+			//The new is bigger
+			oldLocLength.length < newLocLength.length || 
+			
+			//The new is equal but file name precedes
+			oldLocLength.length == newLocLength.length && 
+			newLocLength.loc.filepath.compareTo(oldLocLength.loc.filepath) < 0 ||
+
+			//Length and file name equal but line number is lower
+			oldLocLength.length == newLocLength.length &&
+			oldLocLength.loc.filepath.equals(newLocLength.loc.filepath) &&
+			oldLocLength.loc.line > newLocLength.loc.line
+		) {
+			oldLocLength.length = newLocLength.length;
+			oldLocLength.loc = newLocLength.loc;
+		}
+	}
+
+	/**
+	 * Class used for storing a location of a line and its length
+	 */
 	private static class LocationLength {
 		private int length;
 		private Location loc;
 
+		/**
+		 * Constructor which creates Location for the LocationLength object
+		 * @param length Length of the line
+		 * @param lineNumber Line number of line 
+		 * @param file File of which the line exist
+		 */
 		LocationLength(int length, int lineNumber, Path file) {
 			this.length = length;
 			this.loc = new Location(file, lineNumber);
+		}
+	}
+
+	/**
+	 * Counter class used for counting line numbers. 
+	 * Is used to prevent problems with non final integers.
+	 */
+	private static class Counter {
+		int count;
+
+		private Counter() {
+			count = 1;
+		}
+
+		private int incrementAndGet() {
+			return count++;
 		}
 	}
 
@@ -305,47 +358,57 @@ public class Exam {
 	 */
 	private static Optional<LocatedWord> wordWithVowels(Path dir, int vowels) {
 		Optional<LocatedWord> found = Optional.empty();
-		List<LocatedWord> location = new ArrayList<>();
-		ExecutorService service = Executors.newWorkStealingPool();
-		new Thread(() -> {
-			try {
-				//Find txt files
-				Files.walk(dir)
-					.parallel()
-					.filter(file -> file.toString().endsWith(".txt"))
-					.anyMatch(file -> {
-						try {
-							//Find matching lines
-							return Files.lines(file)
-								.parallel()
-								.flatMap(Exam::extractWords)
-								.anyMatch(word -> {
-									try {
-										return service.submit(() -> numberOfVowels(word,vowels,file,location)).get();
-									} catch (InterruptedException | ExecutionException e) {
-										e.printStackTrace();
-									}
-									return false;								
-								});
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-						return false;
-				});
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			service.shutdown();
-			}).start();
-		while(location.size() == 0 && !service.isTerminated()) {} //Spin lock
-		if(location.size() != 0) found = Optional.of(location.get(0));
+		//A list was used as a wrapper class for parsing to the stream, due to LocatedWord's attributes being final
+		List<LocatedWord> list = new ArrayList<>();
+		try {
+			//Find txt files
+			boolean isFound = Files.walk(dir)
+				.parallel()
+				.filter(file -> file.toString().endsWith(".txt"))
+				.anyMatch(file -> {
+					try {
+						//Find matching lines
+						return Files.lines(file)
+							.parallel()
+							.flatMap(Exam::extractWords)
+							.filter(word -> word.length() >= vowels)
+							.anyMatch(word -> {
+								return numberOfVowels(word,vowels,file,list);									
+							});
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					return false;
+			});
+			if(isFound) found = Optional.of(list.get(0));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		return found;
 	}
 
+	/**
+	 * Method for checking if a word contains the correct number of vowels and adds it the LocatedWord list
+	 * @param word The word of checking
+	 * @param vowels The number of vowels which should be in the word
+	 * @param file The file of which the word exist
+	 * @param list The list of which holds found words
+	 * @return true if the words meets the criteria of vowels
+	 */
 	private static boolean numberOfVowels(String word, int vowels,Path file, List<LocatedWord> list) {
-		if(vowels == (word.length() - word.replaceAll("[AEIOUaeiou]", "").length())) {
-			list.add(new LocatedWord(word, file));
-			return true;
+		int count = 0;
+		//For loops which count every occurence of a vowel, if it exceeds then it simply returns false
+		for (int i=0 ; i<word.length(); i++){
+			char ch = Character.toLowerCase(word.charAt(i));
+			if(ch == 'a'|| ch == 'e'|| ch == 'i' ||ch == 'o' ||ch == 'u'){
+			   count ++;
+			}
+			if(count > vowels) return false;
+		 }
+		 //If they match it is returned true and the LocatedWord is inserted into the optional
+		 if(count == vowels) {
+			 list.add(new LocatedWord(word, file));
+			 return true;
 		 }
 		 return false;
 	}
@@ -376,56 +439,44 @@ public class Exam {
 	 * @return a list of locations where the given suffix has been found
 	 */
 	private static List<LocatedWord> wordsEndingWith(Path dir, String suffix, int limit) {
-		List<LocatedWord> location = new ArrayList<>();
-		ExecutorService service = Executors.newWorkStealingPool();
-		new Thread(() -> {
-			try {
-				//Find txt files
-				Files.walk(dir)
-					.parallel()
-					.filter(file -> file.toString().endsWith(".txt"))
-					.anyMatch(file -> {
-						try {
-							//Find matching lines
-							return Files.lines(file)
-								.parallel()
-								.flatMap(Exam::extractWords)
-								.anyMatch(word -> {
-									try {
-										return service.submit(() -> wordSuffix(word,suffix,file,location, limit)).get();
-									} catch (InterruptedException | ExecutionException e) {
-										e.printStackTrace();
+		List<LocatedWord> locations = new ArrayList<>();
+		try {
+			//Find txt files
+			Files.walk(dir)
+				.parallel()
+				.filter(file -> file.toString().endsWith(".txt"))
+				.anyMatch(file -> {
+					try {
+						//Find matching lines
+						return Files.lines(file)
+							.parallel()
+							.flatMap(Exam::extractWords)
+							//Filter words which are smaller than suffix
+							.filter(word -> word.length() >= suffix.length())
+							//Filter all words without suffix 
+							.filter(word -> word.endsWith(suffix))
+							.anyMatch(word -> {
+								synchronized(locations) {
+									//If the limit is not hit the word is added
+									if(locations.size() < limit) {
+										locations.add(new LocatedWord(word, file));
+										//If limit is reached then return true and stop stream
+										if(locations.size() == limit)
+											return true;										
 									}
-									return false;								
-								});
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-						return false;
-				});
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			service.shutdown();
-			}).start();
-		while(location.size() < limit && !service.isTerminated()) {} //Spin lock
-		System.out.println(location.size());
-		return location;
+								}
+								return false;		
+							});
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					return false;
+			});
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return locations;
 	}
-
-	private static boolean wordSuffix(String word, String suffix, Path file, List<LocatedWord> list, int limit) {
-		if(word.length() >= suffix.length() && word.substring(word.length()-suffix.length()).equals(suffix)) {
-			synchronized(list) {
-				if(list.size() < limit) {
-				list.add(new LocatedWord(word, file));
-				return false;
-				}
-				else return true;
-			}
-		 }
-		 return false;
-	}
-
 
 	// Do not change this class
 	private static class LocatedWord {
